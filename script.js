@@ -1,7 +1,6 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Game constants
 const PLAYER_WIDTH = 30;
 const PLAYER_HEIGHT = 30;
 const BULLET_WIDTH = 4;
@@ -9,21 +8,23 @@ const BULLET_HEIGHT = 10;
 const ENEMY_WIDTH = 30;
 const ENEMY_HEIGHT = 30;
 
-// Load all assets
+// Load assets
 const assets = {
     player: new Image(),
     enemy: new Image(),
     bullet: new Image(),
     explosion: new Image(),
-    shootSound: new Audio('shoot.mp3'),
-    explosionSound: new Audio('explosion.mp3'),
-    backgroundMusic: new Audio('background.mp3')
+    background: new Image(),
+    shootSound: new Audio('assets/shoot.mp3'),
+    explosionSound: new Audio('assets/explosion.mp3'),
+    backgroundMusic: new Audio('assets/background.mp3')
 };
 
-assets.player.src = 'player.png';
-assets.enemy.src = 'enemy.png';
-assets.bullet.src = 'bullet.png';
-assets.explosion.src = 'explosion.png';
+assets.player.src = 'assets/player.png';
+assets.enemy.src = 'assets/enemy.png';
+assets.bullet.src = 'assets/bullet.png';
+assets.explosion.src = 'assets/explosion.png';
+assets.background.src = 'assets/background.png';
 assets.backgroundMusic.loop = true;
 
 let gameState = 'playing'; // 'playing', 'gameOver'
@@ -31,10 +32,21 @@ let player = { x: canvas.width / 2 - PLAYER_WIDTH / 2, y: canvas.height - PLAYER
 let bullets = [];
 let enemies = [];
 let score = 0;
+let levelIndex = 0;
 
+// Load levels
+let levels = [];
+function loadLevels() {
+    for (let i = 1; i <= 2; i++) { // Adjust this based on how many levels you have
+        fetch(`levels/level${i}.json`)
+            .then(response => response.json())
+            .then(data => levels.push(data));
+    }
+}
+
+// Control keys
 let rightPressed = false;
 let leftPressed = false;
-
 document.addEventListener('keydown', keyDownHandler);
 document.addEventListener('keyup', keyUpHandler);
 
@@ -51,7 +63,7 @@ function keyUpHandler(e) {
 
 function shootBullet() {
     if (gameState !== 'playing') return;
-    
+
     assets.shootSound.currentTime = 0; // Reset sound
     assets.shootSound.play();
 
@@ -64,17 +76,13 @@ function shootBullet() {
     bullets.push(bullet);
 }
 
-function createEnemies() {
-    for (let i = 0; i < 5; i++) {
-        for (let j = 0; j < 3; j++) {
-            enemies.push({ 
-                x: 50 + i * 50, 
-                y: 30 + j * 40, 
-                width: ENEMY_WIDTH, 
-                height: ENEMY_HEIGHT 
-            });
-        }
-    }
+function createEnemies(level) {
+    enemies = level.enemies.map(enemy => ({
+        x: enemy.x,
+        y: enemy.y,
+        width: ENEMY_WIDTH,
+        height: ENEMY_HEIGHT
+    }));
 }
 
 function update() {
@@ -100,8 +108,13 @@ function update() {
     }
 
     if (enemies.length === 0) {
-        gameState = 'gameOver';
-        showGameOver();
+        if (levelIndex < levels.length - 1) {
+            levelIndex++;
+            startNextLevel();
+        } else {
+            gameState = 'gameOver';
+            showGameOver();
+        }
     }
 }
 
@@ -115,8 +128,7 @@ function collides(bullet, enemy) {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    ctx.drawImage(assets.background, 0, 0, canvas.width, canvas.height);
     ctx.drawImage(assets.player, player.x, player.y, PLAYER_WIDTH, PLAYER_HEIGHT);
 
     bullets.forEach(bullet => {
@@ -148,14 +160,19 @@ function restartGame() {
     score = 0;
     player.x = canvas.width / 2 - PLAYER_WIDTH / 2;
     bullets = [];
-    enemies = [];
-    createEnemies();
+    levelIndex = 0;
+    createEnemies(levels[levelIndex]);
     assets.backgroundMusic.play();
     document.getElementById('gameOver').classList.add('hidden');
     loop();
 }
 
+function startNextLevel() {
+    createEnemies(levels[levelIndex]);
+}
+
 // Start game
 assets.backgroundMusic.play();
-createEnemies();
+loadLevels();
+createEnemies(levels[levelIndex]);
 loop();
